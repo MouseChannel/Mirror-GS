@@ -191,7 +191,7 @@ def remove_fly_points(points:torch.Tensor,vis= False):
     return torch.asarray(np.asarray( inlier_cloud.points))
 
 
-def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : torch.Tensor, model_path ):
+def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : torch.Tensor, model_path,vis =False ):
     """
     Render the scene.
 
@@ -204,9 +204,9 @@ def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : 
         screenspace_points.retain_grad()
     except:
         pass
-    mirror_points_mask,scene_points_mask = get_mirrot_points(viewpoint_stack,bg_color,pc,model_path)
+    mirror_points_mask,scene_points_mask = get_mirrot_points(viewpoint_stack,bg_color,pc,model_path,vis=vis)
 
-    mirror_points = remove_fly_points(pc.get_xyz[mirror_points_mask],vis=True)
+    mirror_points = remove_fly_points(pc.get_xyz[mirror_points_mask],vis=vis)
     # mirror_transform = pc.calculate_plane(mirror_points.numpy())
     # mirror_transform = calculate_plane(mirror_points.numpy() )
     from utils import ransac
