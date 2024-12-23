@@ -172,12 +172,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         
         
         
-        # if iteration%100==0 :
-        #     if iteration%500 == 0 or viewpoint_cam.gt_alpha_mask.sum() > 0:
-        #         os.makedirs(f"{scene.model_path}/vis", exist_ok=True)
-        #         vis_image = torch.cat([image, gt_image,  gt_mirror_mask], dim=-1) 
-        #         vis_image = vis_image.permute(1, 2, 0).clamp(0.0, 1.0).detach().cpu().numpy()*255  
-        #         Image.fromarray(vis_image.astype(np.uint8)).save(f"{scene.model_path}/vis/{iteration:04d}.png") 
+        if iteration%100==0 :
+            if iteration%500 == 0 or viewpoint_cam.gt_alpha_mask.sum() > 0:
+                os.makedirs(f"{scene.model_path}/vis", exist_ok=True)
+                vis_image = torch.cat([image, gt_image,  gt_mirror_mask], dim=-1) 
+                vis_image = vis_image.permute(1, 2, 0).clamp(0.0, 1.0).detach().cpu().numpy()*255  
+                Image.fromarray(vis_image.astype(np.uint8)).save(f"{scene.model_path}/vis/{iteration:04d}.png") 
             
                 
 
