@@ -1,0 +1,138 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "metrics",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "metrics.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-m",
+                "output/lou"
+            ]
+        },
+        {
+            "name": "render",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "mirror_render.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-r",
+                "8",
+                "-s",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge",
+                "-m",
+                "output/lou",
+                "--start_checkpoint",
+                "/home/mousechannel/project/gs/zzlast/gaussian-splatting/output/lou/chkpnt_stage_2_30000.pth"
+            ]
+        },
+        {
+            "name": "view",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "view.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-r",
+                "8",
+                "-s",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge",
+                "-m",
+                "output/lou",
+            ]
+        },
+        {
+            "name": "mirror_train_stage_1",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "mirror_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-s",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge",
+                "-m",
+                "output/lou",
+                "-d",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge/depth",
+                "--exposure_lr_init",
+                "0.001",
+                "--exposure_lr_final",
+                "0.0001",
+                "--exposure_lr_delay_steps",
+                "5000",
+                "--exposure_lr_delay_mult",
+                "0.001",
+                "--train_test_exp",
+                "-r",
+                "8",
+                "--disable_viewer",
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "mirror_train_stage_2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "mirror_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-s",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge",
+                "-m",
+                "output/lou",
+                // "-d",
+                // "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge/depth",
+                "--exposure_lr_init",
+                "0.001",
+                "--exposure_lr_final",
+                "0.0001",
+                "--exposure_lr_delay_steps",
+                "5000",
+                "--exposure_lr_delay_mult",
+                "0.001",
+                "--train_test_exp",
+                "-r",
+                "8",
+                "--disable_viewer",
+                "--start_checkpoint",
+                "/home/mousechannel/project/gs/zzlast/gaussian-splatting/output/lou/chkpnt_with_mirror_transform_10001.pth"
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "mirror_train_stage_1_room",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "mirror_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-s",
+                "/home/mousechannel/project/gs/dataset/mirror_aftermask/aftermaskroom",
+                "-m",
+                "output/room",
+                // "-d",
+                // "/home/mousechannel/project/gs/dataset/mirror_aftermask/lounge/depth",
+                "--exposure_lr_init",
+                "0.001",
+                "--exposure_lr_final",
+                "0.0001",
+                "--exposure_lr_delay_steps",
+                "5000",
+                "--exposure_lr_delay_mult",
+                "0.001",
+                "--train_test_exp",
+                "-r",
+                "8",
+                "--disable_viewer",
+            ],
+            "justMyCode": false
+        },
+    ]
+}
