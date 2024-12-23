@@ -25,7 +25,13 @@ def readImages(renders_dir, gt_dir):
     renders = []
     gts = []
     image_names = []
+    images = []
     for fname in os.listdir(renders_dir):
+        images.append(fname)
+    images = sorted(images)
+    # for fname in os.listdir(renders_dir):
+    for fname in images:
+
         render = Image.open(renders_dir / fname)
         gt = Image.open(gt_dir / fname)
         renders.append(tf.to_tensor(render).unsqueeze(0)[:, :3, :, :].cuda())
@@ -49,7 +55,7 @@ def evaluate(model_paths):
             full_dict_polytopeonly[scene_dir] = {}
             per_view_dict_polytopeonly[scene_dir] = {}
 
-            test_dir = Path(scene_dir) / "test"
+            test_dir = Path(scene_dir) / "train"
 
             for method in os.listdir(test_dir):
                 print("Method:", method)
@@ -71,7 +77,7 @@ def evaluate(model_paths):
                 for idx in tqdm(range(len(renders)), desc="Metric evaluation progress"):
                     ssims.append(ssim(renders[idx], gts[idx]))
                     psnrs.append(psnr(renders[idx], gts[idx]))
-                    lpipss.append(lpips(renders[idx], gts[idx], net_type='vgg'))
+                    # lpipss.append(lpips(renders[idx], gts[idx], net_type='vgg'))
 
                 print("  SSIM : {:>12.7f}".format(torch.tensor(ssims).mean(), ".5"))
                 print("  PSNR : {:>12.7f}".format(torch.tensor(psnrs).mean(), ".5"))

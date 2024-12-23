@@ -29,6 +29,7 @@ class CameraInfo(NamedTuple):
     T: np.array
     FovY: np.array
     FovX: np.array
+    image: np.array
     depth_params: dict
     image_path: str
     image_name: str
@@ -71,6 +72,9 @@ def getNerfppNorm(cam_info):
 def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_folder, depths_folder, test_cam_names_list):
     cam_infos = []
     for idx, key in enumerate(cam_extrinsics):
+        # if idx >30:
+        #     break
+        # mocheng
         sys.stdout.write('\r')
         # the exact output you're looking for:
         sys.stdout.write("Reading camera {}/{}".format(idx+1, len(cam_extrinsics)))
@@ -108,9 +112,26 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_fold
         image_path = os.path.join(images_folder, extr.name)
         image_name = extr.name
         depth_path = os.path.join(depths_folder, f"{extr.name[:-n_remove]}.png") if depths_folder != "" else ""
+        
+        image = Image.open(image_path)
+        bg = np.array([1,0,0]) 
+        mirror_mask_path = image_path.replace("images", "masks")
+        mirror_mask = Image.open(mirror_mask_path).convert("L") 
+        mirror_mask = np.array(mirror_mask)[..., None] / 255.0  
+        image = np.array(image) / 255.0 
+        # image = image * (1 - mirror_mask) + mirror_mask * bg  
+        image = np.concatenate([image, mirror_mask], -1)  
+        image = Image.fromarray((image*255).astype(np.uint8))
+        
+        
+        
+        
+        
+        
+        
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, depth_params=depth_params,
-                              image_path=image_path, image_name=image_name, depth_path=depth_path,
+                              image_path=image_path, image_name=image_name, depth_path=depth_path,image=image,
                               width=width, height=height, is_test=image_name in test_cam_names_list)
         cam_infos.append(cam_info)
 

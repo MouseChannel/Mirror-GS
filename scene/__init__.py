@@ -15,6 +15,7 @@ import json
 from utils.system_utils import searchForMaxIteration
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from scene.gaussian_model import GaussianModel
+
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 
@@ -81,6 +82,11 @@ class Scene:
                                                            "point_cloud.ply"), args.train_test_exp)
         else:
             self.gaussians.create_from_pcd(scene_info.point_cloud, scene_info.train_cameras, self.cameras_extent)
+            
+    def init_camera_mirror(self,gaussians ):
+        for camera in self.train_cameras[1.0]:
+             
+            camera.init_mirror_transform(gaussians.get_mirror_transform)
 
     def save(self, iteration):
         point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))

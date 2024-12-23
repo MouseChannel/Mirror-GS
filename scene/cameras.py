@@ -18,7 +18,7 @@ import cv2
 
 class Camera(nn.Module):
     def __init__(self, resolution, colmap_id, R, T, FoVx, FoVy, depth_params, image, invdepthmap,
-                 image_name, uid,
+                 image_name, uid,gt_alpha_mask=None,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
                  train_test_exp = False, is_test_dataset = False, is_test_view = False
                  ):
@@ -28,6 +28,8 @@ class Camera(nn.Module):
         self.colmap_id = colmap_id
         self.R = R
         self.T = T
+        self.R_mirror = None
+        self.T_mirror = None
         self.FoVx = FoVx
         self.FoVy = FoVy
         self.image_name = image_name
@@ -39,13 +41,14 @@ class Camera(nn.Module):
             print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device" )
             self.data_device = torch.device("cuda")
 
-        resized_image_rgb = PILtoTorch(image, resolution)
-        gt_image = resized_image_rgb[:3, ...]
-        self.alpha_mask = None
-        if resized_image_rgb.shape[0] == 4:
-            self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
-        else: 
-            self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
+        # resized_image_rgb = PILtoTorch(image, resolution)
+        # gt_image = resized_image_rgb[:3, ...]
+        # self.alpha_mask = None
+        # if resized_image_rgb.shape[0] == 4:
+            # self.alpha_mask = resized_image_rgb[3:4, ...].to(self.data_device)
+        # else: 
+            # self.alpha_mask = torch.ones_like(resized_image_rgb[0:1, ...].to(self.data_device))
+        self.alpha_mask = torch.ones_like(image[0:1, ...].to(self.data_device))
 
         if train_test_exp and is_test_view:
             if is_test_dataset:
@@ -53,9 +56,13 @@ class Camera(nn.Module):
             else:
                 self.alpha_mask[..., self.alpha_mask.shape[-1] // 2:] = 0
 
-        self.original_image = gt_image.clamp(0.0, 1.0).to(self.data_device)
+        self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]
+        if gt_alpha_mask is not None:
+            # mirror mask, set mirror mask color to red 
+            self.gt_alpha_mask = gt_alpha_mask.to(self.data_device)
+
 
         self.invdepthmap = None
         self.depth_reliable = False
@@ -87,6 +94,20 @@ class Camera(nn.Module):
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy).transpose(0,1).cuda()
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         self.camera_center = self.world_view_transform.inverse()[3, :3]
+        self.world_view_transform_mirror = None
+        self.full_proj_transform_mirror = None
+        self.camera_center_mirror = None
+    def init_mirror_transform(self,view_transform):
+        w2c = self.world_view_transform.transpose(0, 1) # Q_o
+        self.world_view_transform_mirror = torch.matmul(w2c, view_transform.inverse()).transpose(0, 1)
+        # self.world_view_transform_mirror = None
+        self.full_proj_transform_mirror = (self.world_view_transform_mirror.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
+        # self.full_proj_transform_mirror = None
+        self.camera_center_mirror = self.world_view_transform_mirror.inverse()[3, :3]
+        # self.R_mirror = None
+        # self.T_mirror = None
+        self.R_mirror = self.world_view_transform_mirror[:3,:3]
+        self.T_mirror = self.world_view_transform_mirror[3,:3]
         
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):

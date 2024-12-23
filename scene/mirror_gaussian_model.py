@@ -64,6 +64,10 @@ class GaussianModel:
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         
+        self.scene_point_mask = torch.empty(0)
+        self.mirror_points_mask = torch.empty(0)
+        self.mirror_equ_params = torch.empty(0)
+        self.checkpoint_mirror_transform = None
         self.setup_functions()
 
     def capture(self):
@@ -80,6 +84,11 @@ class GaussianModel:
             self.denom,
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
+            self.scene_point_mask,
+            self.mirror_points_mask,
+            self.mirror_equ_params,
+            self.checkpoint_mirror_transform
+            
         )
     
     def restore(self, model_args, training_args):
@@ -94,11 +103,31 @@ class GaussianModel:
         xyz_gradient_accum, 
         denom,
         opt_dict, 
-        self.spatial_lr_scale) = model_args
+        self.spatial_lr_scale,
+        self.scene_point_mask,
+        self.mirror_points_mask,
+        self.mirror_equ_params,
+        self.checkpoint_mirror_transform) = model_args
         self.training_setup(training_args)
         self.xyz_gradient_accum = xyz_gradient_accum
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
+    @property
+    def get_mirror_transform(self):
+        if self.checkpoint_mirror_transform is not None:
+            return self.checkpoint_mirror_transform
+        
+        a, b, c, d = self.mirror_equ_params[0], self.mirror_equ_params[1], self.mirror_equ_params[2], self.mirror_equ_params[3]
+        mirror_transform = torch.asarray([
+            1 - 2 * a * a, -2 * a * b, -2 * a * c, -2 * a * d,
+            -2 * a * b, 1 - 2 * b * b, -2 * b * c, -2 * b * d,
+            -2 * a * c, -2 * b * c, 1 - 2 * c * c, -2 * c * d,
+            0, 0, 0, 1
+        ]).reshape(4, 4)
+        # mirror_transform = torch.as_tensor(mirror_transform, dtype=torch.float, device="cuda")
+        # mirror_transform.requires_grad_()
+
+        return mirror_transform.cuda().float() 
 
     @property
     def get_scaling(self):
@@ -362,7 +391,7 @@ class GaussianModel:
 
         self.denom = self.denom[valid_points_mask]
         self.max_radii2D = self.max_radii2D[valid_points_mask]
-        self.tmp_radii = self.tmp_radii[valid_points_mask]
+        # self.tmp_radii = self.tmp_radii[valid_points_mask]
 
     def cat_tensors_to_optimizer(self, tensors_dict):
         optimizable_tensors = {}
@@ -472,3 +501,39 @@ class GaussianModel:
     def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
+        
+    def apply_mask(self):
+        self.prune_points(self.mirror_points_mask)
+        # self._xyz = self._xyz[self.scene_point_mask]
+        # self._features_dc =  self._features_dc[self.scene_point_mask]
+        # self._features_rest =  self._features_rest[self.scene_point_mask]
+        # self._scaling =  self._scaling[self.scene_point_mask]
+        # self._rotation =  self._rotation[self.scene_point_mask]
+        # self._opacity =  self._opacity[self.scene_point_mask]
+        # self.max_radii2D = self.max_radii2D[self.scene_point_mask]
+        # self.xyz_gradient_accum = self.xyz_gradient_accum[self.scene_point_mask]
+        # self.denom = self.denom[self.scene_point_mask]
+        # for group in self.optimizer.param_groups:
+        #     stored_state = self.optimizer.state.get(group['params'][0], None)
+        #     if stored_state is not None:
+
+        #         stored_state["exp_avg"] =   stored_state["exp_avg"] [self.scene_point_mask]
+        #         stored_state["exp_avg_sq"] =  stored_state["exp_avg_sq"][self.scene_point_mask]
+
+        #         del self.optimizer.state[group['params'][0]]
+        #         group["params"][0] = nn.Parameter( (group["params"][0][self.scene_point_mask] ).requires_grad_(True))
+        #         self.optimizer.state[group['params'][0]] = stored_state
+            
+        
+    # def get_mirror_transform(self):
+    #     a, b, c, d = self.mirror_equ_params[0], self.mirror_equ_params[1], self.mirror_equ_params[2], self.mirror_equ_params[3]
+    #     mirror_transform = torch.asarray([
+    #         1 - 2 * a * a, -2 * a * b, -2 * a * c, -2 * a * d,
+    #         -2 * a * b, 1 - 2 * b * b, -2 * b * c, -2 * b * d,
+    #         -2 * a * c, -2 * b * c, 1 - 2 * c * c, -2 * c * d,
+    #         0, 0, 0, 1
+    #     ]).reshape(4, 4)
+    #     # mirror_transform = torch.as_tensor(mirror_transform, dtype=torch.float, device="cuda")
+    #     # mirror_transform.requires_grad_()
+
+    #     return mirror_transform.cuda().float()
