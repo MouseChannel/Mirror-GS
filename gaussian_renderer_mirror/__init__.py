@@ -258,11 +258,11 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path):
 
     # colors.
     gaussian_grads = torch.zeros(colors.shape[0], device=colors.device, requires_grad=False)
-    viewpoint_stack =  copy.deepcopy(viewpoint_stack_)
-    viewpoint_stack2 = copy.deepcopy(viewpoint_stack_)
+    # viewpoint_stack =  copy.deepcopy(viewpoint_stack_)
+    # viewpoint_stack2 = copy.deepcopy(viewpoint_stack_)
 
-    for i in range(len(viewpoint_stack)):
-        viewpoint_camera = viewpoint_stack.pop(randint(0, len(viewpoint_stack)-1))
+    for i in range(len(viewpoint_stack_)):
+        viewpoint_camera = viewpoint_stack_[randint(0, len(viewpoint_stack_)-1)]
         # Set up rasterization configuration
         tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
         tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
@@ -340,8 +340,8 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path):
     shsn = pc.get_features[~mask_3d]
     scalesn = pc.get_scaling[~mask_3d]
     rotationsn = pc.get_rotation[~mask_3d]
-    for i in range(len(viewpoint_stack2)):
-        viewpoint_camera = viewpoint_stack2.pop(randint(0, len(viewpoint_stack2) - 1))
+    for i in range(len(viewpoint_stack_)):
+        viewpoint_camera = viewpoint_stack_[randint(0, len(viewpoint_stack_)-1)]
         tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
         tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
         viewmatrix = viewpoint_camera.world_view_transform

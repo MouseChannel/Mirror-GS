@@ -118,7 +118,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         if iteration == opt.first_stage_iter and gaussians.checkpoint_mirror_transform is None:
-            calculate_mirror_transform(viewpoint_stack,gaussians,pipe,background,model_path=scene.model_path)
+            calculate_mirror_transform(scene.getTrainCameras().copy(),gaussians,pipe,background,model_path=scene.model_path)
                 
 
         # Loss
@@ -210,7 +210,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     # size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                     size_threshold = None 
                     if gaussians.checkpoint_mirror_transform is not None:
-                        max_grad = 0.01
+                        max_grad = 0.02
                     else:
                         max_grad = 0.05
                     
