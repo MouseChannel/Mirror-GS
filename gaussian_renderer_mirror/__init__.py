@@ -237,7 +237,7 @@ def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : 
 
  
 
-def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path):
+def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path,vis=False):
     screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
     try:
         screenspace_points.retain_grad()
@@ -332,6 +332,8 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path):
 
 
     mask_3d = gaussian_grads > 0
+    if not vis:
+        return mask_3d ,~mask_3d
 
     #vis
     means3Dn = pc.get_xyz[~mask_3d]
