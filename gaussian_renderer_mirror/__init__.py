@@ -402,12 +402,27 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path,vis=False):
 
 
 def get_distance_to_plane_mask(pc:GaussianModel,pipe ):
-    a ,b,c = pc.mirror_equ_params[0],pc.mirror_equ_params[1],pc.mirror_equ_params[2]
-    if pc.checkpoint_mirror_transform is not None:
-        fix =  torch.sqrt((1-pc.checkpoint_mirror_transform)/2)
-        a ,b,c= fix[0][0].item(),fix[1][1].item(),fix[2][2].item()
+    a ,b,c,d = pc.mirror_equ_params[0],pc.mirror_equ_params[1],pc.mirror_equ_params[2],pc.mirror_equ_params[3]
+    # if pc.checkpoint_mirror_transform is not None:
+    #     fix =  torch.sqrt((1-pc.checkpoint_mirror_transform)/2)
+    #     a ,b,c= fix[0][0].item(),fix[1][1].item(),fix[2][2].item()
+        
     plane_nrm = torch.tensor([[a],[b],[c]]).cuda().float()
-    mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)>0 if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)<0
+    # plane_nrm = torch.tensor([[a],[b],[c],[d]]).cuda().float()
+
+    
+    eps = -0.1
+    # mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)>(d - eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)<(d+eps)
+    mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)-d<(-eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)-d<(-eps)
+
+    debug = False
+    if debug:
+        import copy
+        temp = copy.deepcopy(pc)
+        
+        pc.prune_points(mirror_point_mask.squeeze(-1))
+        pc.save_ply("./temp.ply")
+        
     
     return mirror_point_mask.squeeze(-1)
      
