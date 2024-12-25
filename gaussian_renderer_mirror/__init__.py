@@ -123,7 +123,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         colors_precomp = override_color
         
         
-    if use_mirror_transform and pc.checkpoint_mirror_transform is not None:
+    if pipe.mirror_plane_clip and use_mirror_transform and pc.checkpoint_mirror_transform is not None:
     #     # opacity = opacity * (1 - pc.get_mirror_opacity)
         mask = get_distance_to_plane_mask(pc,pipe)
         means3D = means3D[mask]
