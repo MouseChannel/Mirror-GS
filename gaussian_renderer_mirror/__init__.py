@@ -125,7 +125,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         
     if use_mirror_transform and pc.checkpoint_mirror_transform is not None:
     #     # opacity = opacity * (1 - pc.get_mirror_opacity)
-        mask = get_distance_to_plane_mask(pc)
+        mask = get_distance_to_plane_mask(pc,pipe)
         means3D = means3D[mask]
         means2D = means2D[mask]
         shs = shs[mask]
@@ -401,10 +401,14 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path,vis=False):
     return mask_3d ,~mask_3d
 
 
-def get_distance_to_plane_mask(pc:GaussianModel):
+def get_distance_to_plane_mask(pc:GaussianModel,pipe ):
     a ,b,c = pc.mirror_equ_params[0],pc.mirror_equ_params[1],pc.mirror_equ_params[2]
+    if pc.checkpoint_mirror_transform is not None:
+        fix =  torch.sqrt((1-pc.checkpoint_mirror_transform)/2)
+        a ,b,c= fix[0][0].item(),fix[1][1].item(),fix[2][2].item()
     plane_nrm = torch.tensor([[a],[b],[c]]).cuda().float()
-    mirror_point_mask = torch.mm(pc.get_xyz,plane_nrm)<0
+    mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)>0 if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)<0
+    
     return mirror_point_mask.squeeze(-1)
      
     
