@@ -123,16 +123,18 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         colors_precomp = override_color
         
         
-    # if use_mirror_transform:
+    if use_mirror_transform and pc.checkpoint_mirror_transform is not None:
     #     # opacity = opacity * (1 - pc.get_mirror_opacity)
-    #     means3D = means3D[pc.scene_point_mask]
-    #     means2D = means2D[pc.scene_point_mask]
-    #     shs = shs[pc.scene_point_mask]
-    #     opacity = opacity[pc.scene_point_mask]
-    #     scales = scales[pc.scene_point_mask]
-    #     rotations = rotations[pc.scene_point_mask]
-    #     if cov3D_precomp:
-    #         cov3D_precomp = cov3D_precomp[cov3D_precomp]
+        mask = get_distance_to_plane_mask(pc)
+        means3D = means3D[mask]
+        means2D = means2D[mask]
+        shs = shs[mask]
+        opacity = opacity[mask]
+        scales = scales[mask]
+        rotations = rotations[mask]
+        if cov3D_precomp:
+            cov3D_precomp = cov3D_precomp[mask]
+
 
     try:
         means3D.retain_grad()
@@ -397,6 +399,15 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path,vis=False):
         save_image(img, f"{model_path}/outfor_remove_point/{str(i)}no.png")
 
     return mask_3d ,~mask_3d
+
+
+def get_distance_to_plane_mask(pc:GaussianModel):
+    a ,b,c = pc.mirror_equ_params[0],pc.mirror_equ_params[1],pc.mirror_equ_params[2]
+    plane_nrm = torch.tensor([[a],[b],[c]]).cuda().float()
+    mirror_point_mask = torch.mm(pc.get_xyz,plane_nrm)<0
+    return mirror_point_mask.squeeze(-1)
+     
+    
 
 
  
