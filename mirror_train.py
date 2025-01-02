@@ -12,7 +12,7 @@
 import os
 import torch
 from random import randint
-from gaussian_renderer_mirror import calculate_mirror_transform
+from gaussian_renderer_mirror import calculate_mirror_transform, get_distance_to_plane_mask, mirror_transform
 from utils.loss_utils import l1_loss, ssim
 from gaussian_renderer_mirror import render, network_gui
 import sys
@@ -73,7 +73,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     viewpoint_indices = list(range(len(viewpoint_stack)))
     ema_loss_for_log = 0.0
     ema_Ll1depth_for_log = 0.0
-
+    first_iter = int(first_iter)
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
     for iteration in range(first_iter, opt.iterations + 1):
@@ -118,7 +118,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         if iteration == opt.first_stage_iter and gaussians.checkpoint_mirror_transform is None:
-            calculate_mirror_transform(scene.getTrainCameras().copy(),gaussians,pipe,background,model_path=scene.model_path)
+            calculate_mirror_transform(scene.getTrainCameras().copy(),gaussians,pipe,background,model_path=scene.model_path,vis=False)
+        
+        # if iteration == opt.first_stage_iter +2:
+        #     calculate_mirror_transform(scene.getTrainCameras().copy(),gaussians,pipe,background,model_path=scene.model_path,vis=True)
+        #     mirror_transform(f"{scene.model_path}/mirror_point1.ply",gaussians)
+        #     torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt_stage_1_" + str(iteration) + ".pth")
                 
 
         # Loss
@@ -139,15 +144,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         # Depth regularization
         Ll1depth_pure = 0.0
-        if False or depth_l1_weight(iteration) > 0 and viewpoint_cam.depth_reliable :
+        if  depth_l1_weight(iteration) > 0 and viewpoint_cam.depth_reliable :
             invDepth = render_pkg["depth"]
+            invDepth = invDepth *(1- gt_mirror_mask)
             mono_invdepth = viewpoint_cam.invdepthmap.cuda()
+            mono_invdepth = mono_invdepth* (1- gt_mirror_mask)
             depth_mask = viewpoint_cam.depth_mask.cuda()
 
             Ll1depth_pure = torch.abs((invDepth  - mono_invdepth) * depth_mask).mean()
             Ll1depth = depth_l1_weight(iteration) * Ll1depth_pure 
             # if gaussians.checkpoint_mirror_transform is not None:
-            #     loss += Ll1depth
+            loss += Ll1depth
             Ll1depth = Ll1depth.item()
         else:
             Ll1depth = 0
@@ -175,7 +182,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         if iteration%100==0 :
             if iteration%500 == 0 or viewpoint_cam.gt_alpha_mask.sum() > 0:
                 os.makedirs(f"{scene.model_path}/vis", exist_ok=True)
-                vis_image = torch.cat([image, gt_image,  gt_mirror_mask], dim=-1) 
+                vis_image = torch.cat([image, gt_image,  gt_mirror_mask,invDepth], dim=-1) 
                 vis_image = vis_image.permute(1, 2, 0).clamp(0.0, 1.0).detach().cpu().numpy()*255  
                 Image.fromarray(vis_image.astype(np.uint8)).save(f"{scene.model_path}/vis/{iteration:04d}.png") 
             
@@ -210,9 +217,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     # size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                     size_threshold = None 
                     if gaussians.checkpoint_mirror_transform is not None:
-                        max_grad = 0.02
+                        max_grad = 0.008
                     else:
-                        max_grad = 0.05
+                        max_grad = 0.06
                     
                     gaussians.densify_and_prune(opt.densify_grad_threshold, max_grad, scene.cameras_extent, size_threshold, radii)
                 
@@ -221,7 +228,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             # Optimizer step
             if iteration < opt.iterations:
-                if gaussians.checkpoint_mirror_transform is not None:
+                if dataset.train_test_exp and gaussians.checkpoint_mirror_transform is not None:
                     gaussians.exposure_optimizer.step()
                     gaussians.exposure_optimizer.zero_grad(set_to_none = True)
                 if use_sparse_adam:
@@ -234,7 +241,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             if iteration == opt.first_stage_iter and gaussians.checkpoint_mirror_transform is None:
                 gaussians.apply_mask()
 
-            if (iteration in checkpoint_iterations or iteration == opt.first_stage_iter):
+            if (iteration in checkpoint_iterations or iteration == opt.first_stage_iter or iteration == opt.iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 if iteration==opt.first_stage_iter:
                     torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt_stage_1_" + str(iteration) + ".pth")
