@@ -182,15 +182,31 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     return out
 
 
-def remove_fly_points(points:torch.Tensor,vis= False):
+def remove_fly_points(points:torch.Tensor,model_path ,vis= False):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points.detach().cpu().numpy())
     cl, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=0.1)
     inlier_cloud = pcd.select_by_index(ind)
     if vis:
-        o3d.visualization.draw_geometries([inlier_cloud])
+        vis = o3d.visualization.VisualizerWithEditing()
+        vis.create_window()
+        vis.add_geometry(inlier_cloud)
+        vis.run()
+        vis.destroy_window()
+        ind = vis.get_picked_points()
+        index = np.asarray(ind)
+        A = np.arange(0,len(inlier_cloud.points))
+        mask = np.isin(A, index)
+        B = A[~mask]
+        inlier_cloud1 = inlier_cloud.select_by_index(B.tolist())
+        o3d.visualization.draw_geometries([inlier_cloud1])
 
-    return torch.asarray(np.asarray( inlier_cloud.points))
+        # aa = vis.get_picked_points()
+        #
+        # o3d.visualization.draw_geometries([inlier_cloud])
+    o3d.io.write_point_cloud(f"{model_path}/mirror_point.ply", inlier_cloud)
+
+    return torch.asarray(np.asarray( inlier_cloud1.points))
 
 
 def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : torch.Tensor, model_path,vis =False ):
@@ -208,7 +224,7 @@ def calculate_mirror_transform(viewpoint_stack,pc:GaussianModel,pipe,bg_color : 
         pass
     mirror_points_mask,scene_points_mask = get_mirrot_points(viewpoint_stack,bg_color,pc,model_path,vis=vis)
 
-    mirror_points = remove_fly_points(pc.get_xyz[mirror_points_mask],vis=vis)
+    mirror_points = remove_fly_points(pc.get_xyz[mirror_points_mask],model_path = model_path,vis=vis)
     # mirror_transform = pc.calculate_plane(mirror_points.numpy())
     # mirror_transform = calculate_plane(mirror_points.numpy() )
     from utils import ransac
@@ -401,6 +417,19 @@ def get_mirrot_points(viewpoint_stack_,bg_color,pc,model_path,vis=False):
     return mask_3d ,~mask_3d
 
 
+def mirror_transform(point_path,pc:GaussianModel):
+    from utils import ransac
+    pcd = o3d.io.read_point_cloud(point_path)
+    # o3d.visualization.draw_geometries([pcd])
+    mirror_points = np.asarray( pcd.points)
+    mirror_equ, mirror_pts_ids = ransac.Plane(mirror_points, 0.05)
+
+    # apply mask
+    pc.mirror_equ_params = mirror_equ
+    
+    
+    
+
 def get_distance_to_plane_mask(pc:GaussianModel,pipe ):
     a ,b,c,d = pc.mirror_equ_params[0],pc.mirror_equ_params[1],pc.mirror_equ_params[2],pc.mirror_equ_params[3]
     # if pc.checkpoint_mirror_transform is not None:
@@ -411,10 +440,17 @@ def get_distance_to_plane_mask(pc:GaussianModel,pipe ):
     # plane_nrm = torch.tensor([[a],[b],[c],[d]]).cuda().float()
 
     
-    eps = -0.1
-    # mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)>(d - eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)<(d+eps)
-    mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)-d<(-eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)-d<(-eps)
+    # eps = -0.3
+    # eps = 3
+    # eps = pc.temp
+    eps = 0
 
+
+
+    # mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)>(d - eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)<(d+eps)
+    mirror_point_mask =  torch.mm(pc.get_xyz,plane_nrm)+d<(eps) if pipe.mirror_plane_reverse else torch.mm(pc.get_xyz,plane_nrm)+d>(-eps)
+    # if pipe.mirror_plane_reverse:
+    #     mirror_point_mask = ~mirror_point_mask
     debug = False
     if debug:
         import copy
