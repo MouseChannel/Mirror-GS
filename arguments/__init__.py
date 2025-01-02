@@ -96,9 +96,11 @@ class OptimizationParams(ParamGroup):
         self.depth_l1_weight_init = 1.0
         self.depth_l1_weight_final = 0.01
         self.random_background = False
-        self.first_stage_iter = 10001
-        self.iterations = 30_000
-        self.position_lr_max_steps = 30_000
+        # self.first_stage_iter = 10001
+        self.first_stage_iter = 20001
+
+        self.iterations = 100_000
+        self.position_lr_max_steps = 100_000
         self.second_stage_iter = 40000
         self.optimizer_type = "default"
         super().__init__(parser, "Optimization Parameters")

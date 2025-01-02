@@ -128,7 +128,6 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, depths_params, images_fold
         
         
         
-        
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, depth_params=depth_params,
                               image_path=image_path, image_name=image_name, depth_path=depth_path,image=image,
@@ -200,7 +199,7 @@ def readColmapSceneInfo(path, images, depths, eval, train_test_exp, llffhold=8):
     if eval:
         if "360" in path:
             llffhold = 8
-        if llffhold:
+        if llffhold and False:
             print("------------LLFF HOLD-------------")
             cam_names = [cam_extrinsics[cam_id].name for cam_id in cam_extrinsics]
             cam_names = sorted(cam_names)
@@ -284,9 +283,19 @@ def readCamerasFromTransforms(path, transformsfile, depths_folder, white_backgro
             FovX = fovx
 
             depth_path = os.path.join(depths_folder, f"{image_name}.png") if depths_folder != "" else ""
+            
+            image = Image.open(image_path)
+            bg = np.array([1,0,0]) 
+            mirror_mask_path = image_path.replace("images/Image", "masks/MirrorMask")
+            mirror_mask = Image.open(mirror_mask_path).convert("L") 
+            mirror_mask = np.array(mirror_mask)[..., None] / 255.0  
+            image = np.array(image) / 255.0 
+            # image = image * (1 - mirror_mask) + mirror_mask * bg  
+            image = np.concatenate([image, mirror_mask], -1)  
+            image = Image.fromarray((image*255).astype(np.uint8))
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX,
-                            image_path=image_path, image_name=image_name,
+                            image_path=image_path, image_name=image_name,image=image,
                             width=image.size[0], height=image.size[1], depth_path=depth_path, depth_params=None, is_test=is_test))
             
     return cam_infos
